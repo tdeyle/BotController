@@ -9,6 +9,7 @@ void createMap(double *sim_map_arr, int num_row, int num_col, int cell_size)
 	// Given an array address, create a map with the num_row by num_col, with a cell_size.
 	// Example: 500 x 500 grid with a grid size of 50mm creates a map of 10x10 cells in an 
 	// array.
+	// TODO: Try to tie in the setArray method with the one that is the process array module.
 	
 	int row, col, idx;
 	setArray(sim_map_arr, num_row, num_col, 0.0);
@@ -25,8 +26,12 @@ void createMap(double *sim_map_arr, int num_row, int num_col, int cell_size)
 	}
 }
 
-void scanDistance(double *dist_arr, double bot_x, double bot_y, double theta)
+void scanDistance(double *dist_arr, double *sim_map_arr, double bot_x, double bot_y, double theta)
 {
+	// Given a distance array address, the location of the robot and its orientation,
+	// and the simulated map array, find the distances between the robot and either
+	// obstacles found, or the max distance of the sensor that is measuring.
+
 	return 0;
 }
 

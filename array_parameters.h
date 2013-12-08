@@ -16,6 +16,10 @@
 #define GPS_WIDTH (WORLD_WIDTH/CELL_SIZE)
 #define GPS_HEIGHT (WORLD_HEIGHT/CELL_SIZE)
 
+#define NUM_ROWS (WORLD_WIDTH/CELL_SIZE)
+#define NUM_COLS (WORLD_HEIGHT/CELL_SIZE)
+
+
 #define worldToScreenx (WORLD_WIDTH/SCREEN_WIDTH)	// TODO: Define these constants in a Grid Utilities header file
 #define worldToScreeny (WORLD_HEIGHT/SCREEN_HEIGHT)
 

@@ -7,6 +7,10 @@ import cython_simulator
 
 if __name__ == "__main__":
 
+    cython_process_array.main()
+"""
+    # Used in process_GPS <- updateFromLPS
+    # Used in process_array <- process, detectHits, assignOccupancy
     WORLD_WIDTH = 12000   #// in millimeters
     WORLD_HEIGHT = 6000   #// in millimeters
     SCREEN_WIDTH = 1200   #// in px
@@ -16,6 +20,21 @@ if __name__ == "__main__":
     LPS_HEIGHT = 20
     GPS_WIDTH = WORLD_WIDTH/CELL_SIZE
     GPS_HEIGHT = WORLD_HEIGHT/CELL_SIZE
+
+    LPS_ORIGIN = (LPS_WIDTH/2, LPS_HEIGHT/2) # tuple in x,y format
+
+    # Not Used Yet...
+    worldToScreen = (WORLD_WIDTH/SCREEN_WIDTH, WORLD_HEIGHT/SCREEN_HEIGHT)
+    worldToGrid = (WORLD_WIDTH/CELL_SIZE, WORLD_HEIGHT/CELL_SIZE)
+    screenToWorld = (SCREEN_WIDTH/WORLD_WIDTH, SCREEN_HEIGHT/WORLD_HEIGHT)
+    gridToWorld = (1.0/worldToGrid[0], 1.0/worldToGrid[1])
+
+    SENSOR_FOV = 360
+    MAX_RANGE = 10
+
+    # process_GPS.c <- getProb
+    max_occupied = 0.98
+    max_empty = 0.05
 
     NUM_ROWS = WORLD_WIDTH/CELL_SIZE
     NUM_COLS = WORLD_HEIGHT/CELL_SIZE
@@ -28,7 +47,6 @@ if __name__ == "__main__":
     LPS = np.arange(LPS_WIDTH*LPS_HEIGHT, dtype=np.float64).reshape((LPS_HEIGHT,LPS_WIDTH))
     GPS = np.arange(GPS_WIDTH*GPS_HEIGHT, dtype=np.float64).reshape((GPS_HEIGHT,GPS_WIDTH))
     cython_process_array.cy_initArray(GPS)
-
 
     sim_map = np.arange(GPS_WIDTH*GPS_HEIGHT, dtype=np.float64).reshape((GPS_HEIGHT,GPS_WIDTH))
 
@@ -55,3 +73,4 @@ if __name__ == "__main__":
     print LPS
     print ""
     print GPS
+"""
