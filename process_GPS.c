@@ -24,8 +24,8 @@ void updateFromLPS(double *LPS_arr, double *GPS_arr, double origx, double origy,
 
 	int GPSidx, LPSidx;
 
-	botx = (int)(origx);
-	boty = (int)(origy);
+	botx = (int)(origx/CELL_SIZE);
+	boty = (int)(origy/CELL_SIZE);
 
 	if (botx < 0 || botx > GPS_WIDTH){
 		printf("Invalid X location\n");

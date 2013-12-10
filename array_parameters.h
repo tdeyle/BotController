@@ -34,7 +34,7 @@
 
 // process_arrays parameters
 #define SENSOR_FOV 360
-#define MAX_RANGE 10
+#define MAX_RANGE 5000
 
 #define UNKNOWN 0.5
 #define OCCUPIED 1.0

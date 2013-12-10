@@ -56,6 +56,8 @@ void detectHits(double *LPS_arr, int *dist_arr, double theta, double origx, doub
 		hitx = cos(i*M_PI/180) * dist + origx;
 		hity = sin(i*M_PI/180) * dist + origy;
 
+		printf("%.2f, %.2f\n", hitx, hity);
+
 		assignOccupancy(LPS_arr, offx, offy, hitx, hity, origx, origy, arc, senseObstacle);
 	}
 }
@@ -66,8 +68,8 @@ void assignOccupancy(double *LPS_arr, int offx, int offy, double hitx, double hi
 	int steps, step;
 	double colScaleMM, rowScaleMM;
 
-	colScaleMM = 1.0;
-	rowScaleMM = 1.0;
+	colScaleMM = CELL_SIZE;
+	rowScaleMM = CELL_SIZE;
 
 	rise = hity - origy;
 	if (fabs(rise) < 0.1){

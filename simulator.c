@@ -32,7 +32,7 @@ void scanDistance(double *dist_arr, double *sim_map_arr, double bot_x, double bo
 	// and the simulated map array, find the distances between the robot and either
 	// obstacles found, or the max distance of the sensor that is measuring.
 
-	return 0;
+	
 }
 
 void setArray(double *arr, int rows, int cols, double value)

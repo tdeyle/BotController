@@ -6,8 +6,8 @@ import cython_process_array
 import cython_simulator
 
 if __name__ == "__main__":
-
-    cython_process_array.main()
+    bot_state = (6000.0, 3000.0, 0)
+    cython_process_array.main(bot_state)
 """
     # Used in process_GPS <- updateFromLPS
     # Used in process_array <- process, detectHits, assignOccupancy
