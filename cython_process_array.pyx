@@ -1,5 +1,6 @@
 # Where is the bot location going to go?
-
+#!python
+#cython: cdivision(True), boundscheck(False), wraparound(False)
 import cython
 import time
 import cython_simulator
@@ -22,6 +23,9 @@ cdef extern from "array_parameters.h":
     cdef int GPS_HEIGHT_CELLS
     cdef int LPS_WIDTH_CELLS
     cdef int LPS_HEIGHT_CELLS
+
+    cdef int LPS_ORIGINx
+    cdef int LPS_ORIGINy
 
     cdef int NUM_ROWS
     cdef int NUM_COLS
@@ -51,12 +55,9 @@ cdef void measureDistance(np.ndarray[int, ndim=1, mode="c"] dist_arr, np.ndarray
 
     for angle in xrange(SENSOR_FOV):
         local_angle = int(theta + angle) % 360
-        # print "local_angle", local_angle
         local_angle_rad = <double>(local_angle * M_PI / 180.0)
 
         for length in xrange(MAX_RANGE):
-
-            # print "length: ", length, "degrees: ", degrees
 
             current_x = x + cos(local_angle_rad) * length
             current_y = y + sin(local_angle_rad) * length
@@ -64,20 +65,34 @@ cdef void measureDistance(np.ndarray[int, ndim=1, mode="c"] dist_arr, np.ndarray
             grid_x = int(current_x / CELL_SIZE)
             grid_y = int(current_y / CELL_SIZE)
 
-            # print "angle: ", local_angle, "current X,Y: ", current_x, ",", current_y, "grid X,y: ", grid_x, ",", grid_y, sim_map_arr[grid_y, grid_x]
-            
             if grid_y >= WORLD_HEIGHT/CELL_SIZE or grid_y < 0 or grid_x >= WORLD_WIDTH/CELL_SIZE or grid_x < 0:
                 dist_arr[local_angle] = length
-                # print "Over bounds"
                 break
             elif sim_map_arr[grid_y, grid_x] == 1.0:
                 dist_arr[local_angle] = length
-                # print "Hit @ ", length
                 break 
             elif length == MAX_RANGE - 1:
                 dist_arr[local_angle] = MAX_RANGE-1
-                # print "No hit", local_angle
 
+cdef void detectHits(np.ndarray[double, ndim=2, mode='c'] LPS_arr, np.ndarray[int, ndim=1, mode='c'] dist_arr, double theta, double origx, double origy):
+    cdef int senseObstacle
+    cdef int i, dist, arc, offx, offy
+    cdef double hitx, hity
+
+    arc = 0
+    offx = 0
+    offy = 0
+
+    for i in xrange(SENSOR_FOV):
+        dist = dist_arr[i]
+        if dist < MAX_RANGE - 1:
+            senseObstacle = True
+        else:
+            senseObstacle = False
+        hitx = cos(i*M_PI/180) * dist + origx
+        hity = sin(i*M_PI/180) * dist + origy
+
+        print hitx, hity
 
 def main(bot_state):
     cdef double fBotx, fBoty, fTheta
@@ -106,13 +121,16 @@ def main(bot_state):
 
     before = time.clock()
     measureDistance(distance, sim_map, fBotx, fBoty, fTheta)
+
+    detectHits(LPS, distance, fTheta, LPS_ORIGINx, LPS_ORIGINy)
+    
     print "Cython: ", time.clock() - before
 
     print distance
     # print "Bot Location: ", botx, boty
 
-    # # print LPS
-    # # print GPS
+    print LPS
+    # print GPS
     # # b = np.arange(360, dtype=np.int32)
     # # b[0:360] = 8
 
@@ -120,7 +138,7 @@ def main(bot_state):
 
     # # Add assigning values to the GPS and LPS arrays here.... GPS[0:...] = 0.5
 
-    cy_processArray(GPS, LPS, distance, fBotx, fBoty, fTheta)
+    # cy_processArray(GPS, LPS, distance, fBotx, fBoty, fTheta)
     
     # after_cy = time.clock()
 
@@ -130,7 +148,7 @@ def main(bot_state):
     # # print "cy array", after_cy-before_cy
 
     # print "LPS: "
-    print LPS
+    # print LPS
     # print ""
     # print "GPS: "
     # print GPS
