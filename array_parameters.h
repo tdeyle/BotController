@@ -1,11 +1,6 @@
 // array_parameters.h
 // - Holds all parameters for array processing
 
-#define LPS_ORIGINx (int) LPS_WIDTH/2 	// TODO: Add to a LPS settings header file
-#define LPS_ORIGINy (int) LPS_HEIGHT/2
-#define LPS_WIDTH 20
-#define LPS_HEIGHT 20
-
 // TODO: Add a UI settings header file
 #define WORLD_WIDTH 12000	// in millimeters
 #define WORLD_HEIGHT 6000	// in millimeters
@@ -13,12 +8,20 @@
 #define SCREEN_HEIGHT 600	// in px
 #define CELL_SIZE 240 		// in millimeters
 
-#define GPS_WIDTH (WORLD_WIDTH/CELL_SIZE)
-#define GPS_HEIGHT (WORLD_HEIGHT/CELL_SIZE)
+#define LPS_ORIGINx (int)(LPS_WIDTH/2)
+#define LPS_ORIGINy (int)(LPS_HEIGHT/2)
+#define LPS_WIDTH MAX_RANGE*2
+#define LPS_HEIGHT MAX_RANGE*2
+#define LPS_WIDTH_CELLS (int)(LPS_WIDTH/CELL_SIZE)
+#define LPS_HEIGHT_CELLS (int)(LPS_HEIGHT/CELL_SIZE)
+
+#define GPS_WIDTH_CELLS (WORLD_WIDTH/CELL_SIZE)
+#define GPS_HEIGHT_CELLS (WORLD_HEIGHT/CELL_SIZE)
+#define GPS_WIDTH WORLD_WIDTH
+#define GPS_HEIGHT WORLD_HEIGHT
 
 #define NUM_ROWS (WORLD_WIDTH/CELL_SIZE)
 #define NUM_COLS (WORLD_HEIGHT/CELL_SIZE)
-
 
 #define worldToScreenx (WORLD_WIDTH/SCREEN_WIDTH)	// TODO: Define these constants in a Grid Utilities header file
 #define worldToScreeny (WORLD_HEIGHT/SCREEN_HEIGHT)
