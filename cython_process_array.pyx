@@ -82,7 +82,7 @@ cdef void measureDistance(np.ndarray[int, ndim=1, mode="c"] dist_arr, np.ndarray
             elif length == MAX_RANGE - 1:
                 dist_arr[local_angle] = MAX_RANGE-1
 
-cdef void detectHits(np.ndarray[double, ndim=2, mode='c'] LPS_arr, np.ndarray[int, ndim=1, mode='c'] dist_arr, double theta, double origx, double origy):
+cdef void detectHits(np.ndarray[double, ndim=2, mode='c'] LPS_arr, np.ndarray[int, ndim=1, mode='c'] dist_arr, double theta):
     cdef int senseObstacle
     cdef int i, dist, arc, offx, offy
     cdef double hitx, hity
@@ -97,55 +97,56 @@ cdef void detectHits(np.ndarray[double, ndim=2, mode='c'] LPS_arr, np.ndarray[in
             senseObstacle = True
         else:
             senseObstacle = False
-        hitx = cos(i*M_PI/180) * dist + origx
-        hity = sin(i*M_PI/180) * dist + origy
+        hitx = cos(theta+i*M_PI/180) * dist + LPS_ORIGINx
+        hity = sin(theta+i*M_PI/180) * dist + LPS_ORIGINy
 
-        print "At ", i, "degrees, ", hitx, hity
+        # print "At ", i, "degrees, this is hitx, y: ", hitx, hity, int(hitx/CELL_SIZE)-1, int(hity/CELL_SIZE)-1
 
-        assignOccupancy(LPS_arr, offx, offy, hitx, hity, origx, origy, arc, senseObstacle)
+        assignOccupancy(LPS_arr, offx, offy, hitx, hity, arc, senseObstacle)
 
-cdef void assignOccupancy(np.ndarray[double, ndim=2, mode='c'] LPS_arr, double offx, double offy, double hitx, double hity, double origx, double origy, double arc, int senseObstacle):
-    cdef double rise, run, stepx, stepy, current_cell_x, current_cell_y
-    cdef int steps, step
+cdef void assignOccupancy(np.ndarray[double, ndim=2, mode='c'] LPS_arr, double offx, double offy, double hitx, double hity, double arc, int senseObstacle):
+    cdef double rise, run
+    cdef int steps, step, cell_hitx, cell_hity, current_cell_x, current_cell_y, stepx, stepy    
 
-    rise = hity - origy
-    if fabs(rise) < 0.1:
+    rise = hity/CELL_SIZE - LPS_ORIGINy/CELL_SIZE
+    if abs(rise) < 0.1:
         rise = 0.0
 
-    run = hitx - origx
-    if fabs(run) < 0.1:
+    run = hitx/CELL_SIZE - LPS_ORIGINx/CELL_SIZE
+    if abs(run) < 0.1:
         run = 0.0
 
-    steps = lrint(lround(fmax(fabs(rise/CELL_SIZE), fabs(run/CELL_SIZE))))
+    steps = int(round(max(abs(rise), abs(run))))
 
-    if steps == 0:
-        LPS_arr[int(LPS_ORIGINy/CELL_SIZE), int(LPS_ORIGINx/CELL_SIZE)] = OCCUPIED
-        return
+    # if steps == 0:
+    #     LPS_arr[int(LPS_ORIGINy/CELL_SIZE), int(LPS_ORIGINx/CELL_SIZE)] = OCCUPIED
+    #     return
 
-    stepx = run/steps
-    stepy = rise/steps
+    stepx = int(run/steps)
+    stepy = int(rise/steps)
 
-    if fabs(stepx) > CELL_SIZE:
+    if abs(stepx) > CELL_SIZE:
         stepx = CELL_SIZE
         if run < 0:
             stepx *= -1
 
-    if fabs(stepy) > CELL_SIZE:
+    if abs(stepy) > CELL_SIZE:
         stepy = CELL_SIZE
         if rise < 0:
             stepy *= -1
 
-    current_cell_x, current_cell_y = (origx, origy)
+    current_cell_x, current_cell_y = (int(LPS_ORIGINx/CELL_SIZE), int(LPS_ORIGINy/CELL_SIZE))
 
-    LPS_arr[int(current_cell_y), int(current_cell_y)] = UNOCCUPIED
+    LPS_arr[int(current_cell_x), int(current_cell_y)] = UNOCCUPIED
+    cell_hitx, cell_hity = (int(hitx/CELL_SIZE), int(hity/CELL_SIZE))
 
-    print rise, run, steps, stepx, stepy, current_cell_x, current_cell_y
+    print "Rise: ", rise, "run: ", run, "steps: ", steps, "stepx: ", stepx, "stepy: ", stepy, "current cells: ", current_cell_x, current_cell_y
 
     for step in range(steps):
         current_cell_x += stepy
         current_cell_y += stepx
 
-        LPS_arr[int(current_cell_y), int(current_cell_y)] = UNOCCUPIED
+        LPS_arr[current_cell_y, current_cell_x] = UNOCCUPIED
 
         if senseObstacle == True:
             LPS_arr[int(hity/CELL_SIZE), int(hitx/CELL_SIZE)] = OCCUPIED
@@ -182,7 +183,7 @@ def main(bot_state):
 
     LPS[0:] = 0.5
 
-    detectHits(LPS, distance, fTheta, LPS_ORIGINx, LPS_ORIGINy)
+    detectHits(LPS, distance, fTheta)
     
     print "Cython: ", time.clock() - before
 
