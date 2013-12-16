@@ -7,6 +7,7 @@ import cython_simulator
 from libc.math cimport M_PI, sin, cos, fabs, lrint, lround, fmax
 import numpy as np
 cimport numpy as np
+from cython.parallel import parallel, prange
 
 cdef extern from "process_array.h":
     void process(double *GPS_arr, double *LPS_arr, int *dist_arr, double origx, double origy, double theta)
@@ -38,8 +39,6 @@ cdef extern from "array_parameters.h":
     cdef int UNKNOWN
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
 def cy_processArray(np.ndarray[double, ndim=2, mode="c"] input_GPS, np.ndarray[double, ndim=2, mode="c"] input, np.ndarray[int, ndim=1, mode="c"] dist, double origx, double origy, double theta):
     process(&input_GPS[0,0], &input[0,0], &dist[0], origx, origy, theta)
 
@@ -56,22 +55,23 @@ cdef void measureDistance(np.ndarray[int, ndim=1, mode="c"] dist_arr, np.ndarray
     cdef int x, y
     cdef int angle, length, local_angle, grid_x, grid_y
 
-    x = (int)(bot_x);
-    y = (int)(bot_y);
+    x = lrint(bot_x);
+    y = lrint(bot_y);
 
     print "Entering"
-
-    for angle in xrange(SENSOR_FOV):
-        local_angle = int(theta + angle) % 360
+    
+    # for angle in xrange(SENSOR_FOV):
+    for angle in prange(SENSOR_FOV, nogil=True):
+        local_angle = <int>(theta + angle) % 360
         local_angle_rad = <double>(local_angle * M_PI / 180.0)
 
-        for length in xrange(MAX_RANGE):
-
+        # for length in xrange(MAX_RANGE):
+        for length in prange(MAX_RANGE):
             current_x = x + cos(local_angle_rad) * length
             current_y = y + sin(local_angle_rad) * length
 
-            grid_x = int(current_x / CELL_SIZE)
-            grid_y = int(current_y / CELL_SIZE)
+            grid_x = lrint(current_x / CELL_SIZE)
+            grid_y = lrint(current_y / CELL_SIZE)
 
             if grid_y >= WORLD_HEIGHT/CELL_SIZE or grid_y < 0 or grid_x >= WORLD_WIDTH/CELL_SIZE or grid_x < 0:
                 dist_arr[local_angle] = length
@@ -106,47 +106,43 @@ cdef void assignOccupancy(np.ndarray[double, ndim=2, mode='c'] LPS_arr, int offx
     cdef double rise, run, stepx, stepy, fcurrent_x, fcurrent_y
     cdef int steps, step, cell_hitx, cell_hity, current_cell_x, current_cell_y
 
-    rise = (hity - LPS_ORIGINy) / CELL_SIZE #hity/CELL_SIZE - LPS_ORIGINy/CELL_SIZE
-    if abs(rise) < 0.1:
+    rise = (hity - LPS_ORIGINy) / CELL_SIZE
+    if fabs(rise) < 0.1:
         rise = 0.0
 
-    run = (hitx - LPS_ORIGINx) / CELL_SIZE #hitx/CELL_SIZE - LPS_ORIGINx/CELL_SIZE
-    if abs(run) < 0.1:
+    run = (hitx - LPS_ORIGINx) / CELL_SIZE
+    if fabs(run) < 0.1:
         run = 0.0
 
-    steps = int(round(max(abs(rise), abs(run))))
-
-    # if steps == 0:
-    #     LPS_arr[int(LPS_ORIGINy/CELL_SIZE), int(LPS_ORIGINx/CELL_SIZE)] = OCCUPIED
-    #     return
+    steps = lrint(lround(fmax(fabs(rise), fabs(run))))
 
     stepx = run/steps
     stepy = rise/steps
 
-    if abs(stepx) > CELL_SIZE:
+    if fabs(stepx) > CELL_SIZE:
         stepx = CELL_SIZE
         if run < 0:
             stepx *= -1
 
-    if abs(stepy) > CELL_SIZE:
+    if fabs(stepy) > CELL_SIZE:
         stepy = CELL_SIZE
         if rise < 0:
             stepy *= -1
 
     fcurrent_cell_x, fcurrent_cell_y = (LPS_ORIGINx/CELL_SIZE, LPS_ORIGINy/CELL_SIZE)
-    current_cell_x, current_cell_y = (int(fcurrent_cell_x), int(fcurrent_cell_y))
+    current_cell_x, current_cell_y = (lrint(fcurrent_cell_x), lrint(fcurrent_cell_y))
 
     LPS_arr[current_cell_y, current_cell_x] = 2 # UNOCCUPIED
-    cell_hitx, cell_hity = (int(hitx/CELL_SIZE), int(hity/CELL_SIZE))
+    cell_hitx, cell_hity = (lrint(hitx/CELL_SIZE), lrint(hity/CELL_SIZE))
 
     # print "Rise: ", rise, "run: ", run, "steps: ", steps, "stepx: ", stepx, "stepy: ", stepy, "current cells: ", current_cell_x, current_cell_y
 
-    for step in range(steps):
+    for step in xrange(steps):
         fcurrent_cell_x += stepx
         fcurrent_cell_y += stepy
 
-        current_cell_x = int(fcurrent_cell_x)
-        current_cell_y = int(fcurrent_cell_y)
+        current_cell_x = lrint(fcurrent_cell_x)
+        current_cell_y = lrint(fcurrent_cell_y)
 
         LPS_arr[current_cell_y, current_cell_x] = UNOCCUPIED
 
@@ -207,7 +203,7 @@ def main(bot_state):
     # #-------------------------------------
     # # Printing results
     # #-------------------------------------
-    # print "cy array", after_cy-before_cy
+    print "cy array", after_cy-before_cy
 
     print "LPS: "
     print LPS
