@@ -3,17 +3,17 @@
 
 // TODO: Add a UI settings header file
 #define WORLD_WIDTH 12000	// in millimeters
-#define WORLD_HEIGHT 6000	// in millimeters
+#define WORLD_HEIGHT 12000	// in millimeters
 #define SCREEN_WIDTH 1200	// in px
 #define SCREEN_HEIGHT 600	// in px
-#define CELL_SIZE 240 		// in millimeters
+#define CELL_SIZE 200 		// in millimeters
 
-#define LPS_ORIGINx (int)(LPS_WIDTH/2)
+#define LPS_WIDTH (MAX_RANGE * 2 + CELL_SIZE)
+#define LPS_HEIGHT (MAX_RANGE * 2 + CELL_SIZE)
+#define LPS_ORIGINx (int)(LPS_WIDTH/2) 
 #define LPS_ORIGINy (int)(LPS_HEIGHT/2)
-#define LPS_WIDTH MAX_RANGE*2
-#define LPS_HEIGHT MAX_RANGE*2
 #define LPS_WIDTH_CELLS (int)(LPS_WIDTH/CELL_SIZE)
-#define LPS_HEIGHT_CELLS (int)(LPS_HEIGHT/CELL_SIZE)
+#define LPS_HEIGHT_CELLS (int)(LPS_HEIGHT/CELL_SIZE) 
 
 #define GPS_WIDTH_CELLS (WORLD_WIDTH/CELL_SIZE)
 #define GPS_HEIGHT_CELLS (WORLD_HEIGHT/CELL_SIZE)

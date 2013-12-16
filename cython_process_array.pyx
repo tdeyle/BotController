@@ -100,19 +100,17 @@ cdef void detectHits(np.ndarray[double, ndim=2, mode='c'] LPS_arr, np.ndarray[in
         hitx = cos(theta+i*M_PI/180) * dist + LPS_ORIGINx
         hity = sin(theta+i*M_PI/180) * dist + LPS_ORIGINy
 
-        # print "At ", i, "degrees, this is hitx, y: ", hitx, hity, int(hitx/CELL_SIZE)-1, int(hity/CELL_SIZE)-1
-
         assignOccupancy(LPS_arr, offx, offy, hitx, hity, arc, senseObstacle)
 
-cdef void assignOccupancy(np.ndarray[double, ndim=2, mode='c'] LPS_arr, double offx, double offy, double hitx, double hity, double arc, int senseObstacle):
-    cdef double rise, run
-    cdef int steps, step, cell_hitx, cell_hity, current_cell_x, current_cell_y, stepx, stepy    
+cdef void assignOccupancy(np.ndarray[double, ndim=2, mode='c'] LPS_arr, int offx, int offy, double hitx, double hity, int arc, int senseObstacle):
+    cdef double rise, run, stepx, stepy, fcurrent_x, fcurrent_y
+    cdef int steps, step, cell_hitx, cell_hity, current_cell_x, current_cell_y
 
-    rise = hity/CELL_SIZE - LPS_ORIGINy/CELL_SIZE
+    rise = (hity - LPS_ORIGINy) / CELL_SIZE #hity/CELL_SIZE - LPS_ORIGINy/CELL_SIZE
     if abs(rise) < 0.1:
         rise = 0.0
 
-    run = hitx/CELL_SIZE - LPS_ORIGINx/CELL_SIZE
+    run = (hitx - LPS_ORIGINx) / CELL_SIZE #hitx/CELL_SIZE - LPS_ORIGINx/CELL_SIZE
     if abs(run) < 0.1:
         run = 0.0
 
@@ -122,8 +120,8 @@ cdef void assignOccupancy(np.ndarray[double, ndim=2, mode='c'] LPS_arr, double o
     #     LPS_arr[int(LPS_ORIGINy/CELL_SIZE), int(LPS_ORIGINx/CELL_SIZE)] = OCCUPIED
     #     return
 
-    stepx = int(run/steps)
-    stepy = int(rise/steps)
+    stepx = run/steps
+    stepy = rise/steps
 
     if abs(stepx) > CELL_SIZE:
         stepx = CELL_SIZE
@@ -135,23 +133,27 @@ cdef void assignOccupancy(np.ndarray[double, ndim=2, mode='c'] LPS_arr, double o
         if rise < 0:
             stepy *= -1
 
-    current_cell_x, current_cell_y = (int(LPS_ORIGINx/CELL_SIZE), int(LPS_ORIGINy/CELL_SIZE))
+    fcurrent_cell_x, fcurrent_cell_y = (LPS_ORIGINx/CELL_SIZE, LPS_ORIGINy/CELL_SIZE)
+    current_cell_x, current_cell_y = (int(fcurrent_cell_x), int(fcurrent_cell_y))
 
-    LPS_arr[int(current_cell_x), int(current_cell_y)] = UNOCCUPIED
+    LPS_arr[current_cell_y, current_cell_x] = 2 # UNOCCUPIED
     cell_hitx, cell_hity = (int(hitx/CELL_SIZE), int(hity/CELL_SIZE))
 
-    print "Rise: ", rise, "run: ", run, "steps: ", steps, "stepx: ", stepx, "stepy: ", stepy, "current cells: ", current_cell_x, current_cell_y
+    # print "Rise: ", rise, "run: ", run, "steps: ", steps, "stepx: ", stepx, "stepy: ", stepy, "current cells: ", current_cell_x, current_cell_y
 
     for step in range(steps):
-        current_cell_x += stepy
-        current_cell_y += stepx
+        fcurrent_cell_x += stepx
+        fcurrent_cell_y += stepy
+
+        current_cell_x = int(fcurrent_cell_x)
+        current_cell_y = int(fcurrent_cell_y)
 
         LPS_arr[current_cell_y, current_cell_x] = UNOCCUPIED
 
         if senseObstacle == True:
-            LPS_arr[int(hity/CELL_SIZE), int(hitx/CELL_SIZE)] = OCCUPIED
+            LPS_arr[cell_hity, cell_hitx] = OCCUPIED
         else:
-            LPS_arr[int(hity/CELL_SIZE), int(hitx/CELL_SIZE)] = UNOCCUPIED
+            LPS_arr[cell_hity, cell_hitx] = UNOCCUPIED
 
 def main(bot_state):
     cdef double fBotx, fBoty, fTheta
@@ -160,7 +162,7 @@ def main(bot_state):
 
     np.set_printoptions(linewidth=600, threshold='nan', precision=2)
     
-    # before_cy = time.clock()
+    before_cy = time.clock()
 
     LPS = np.arange(LPS_WIDTH_CELLS*LPS_HEIGHT_CELLS, dtype=np.float64).reshape(LPS_HEIGHT_CELLS,LPS_WIDTH_CELLS)
     
@@ -176,8 +178,6 @@ def main(bot_state):
     
     distance = np.arange(SENSOR_FOV, dtype=np.int32)
 
-    print sim_map
-
     before = time.clock()
     measureDistance(distance, sim_map, fBotx, fBoty, fTheta)
 
@@ -187,10 +187,11 @@ def main(bot_state):
     
     print "Cython: ", time.clock() - before
 
-    print distance
+    # print distance
     # print "Bot Location: ", botx, boty
 
-    print LPS
+    # print LPS
+    # print sim_map
     # print GPS
     # # b = np.arange(360, dtype=np.int32)
     # # b[0:360] = 8
@@ -201,15 +202,15 @@ def main(bot_state):
 
     # cy_processArray(GPS, LPS, distance, fBotx, fBoty, fTheta)
     
-    # after_cy = time.clock()
+    after_cy = time.clock()
 
     # #-------------------------------------
     # # Printing results
     # #-------------------------------------
-    # # print "cy array", after_cy-before_cy
+    # print "cy array", after_cy-before_cy
 
-    # print "LPS: "
-    # print LPS
+    print "LPS: "
+    print LPS
     # print ""
     # print "GPS: "
     # print GPS
