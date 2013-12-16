@@ -7,21 +7,21 @@
 
 void initialize(double *GPS_arr)
 {
-	setArray(GPS_arr, GPS_HEIGHT, GPS_WIDTH, 0.5);
+	setArray(GPS_arr, GPS_HEIGHT_CELLS, GPS_WIDTH_CELLS, 0.5);
 }
 
-void process(double *GPS_arr, double *LPS_arr, int *dist_arr, double origx, double origy, double theta)
+void process(double *GPS_arr, double *LPS_arr, int *dist_arr, double botx, double boty, double theta)
 {
 	// Take an array (LPS_arr) with an array of distances (dist_arr)
 	// Initialize the LPS_arr with 0.5 (unknown) occupancies
 	// Detect hits on the cells within the LPS based on the distances given in the dist_arr.
 	// Assign 1.0 (Occupied) or 0.0 (Unoccupied) values to the cells
 	
-	setArray(LPS_arr, LPS_HEIGHT, LPS_WIDTH, 0.5);
+	setArray(LPS_arr, LPS_HEIGHT_CELLS, LPS_WIDTH_CELLS, 0.5);
 	
-	detectHits(LPS_arr, dist_arr, theta, LPS_ORIGINx, LPS_ORIGINy);
+	// detectHits(LPS_arr, dist_arr, theta, LPS_ORIGINx*CELL_SIZE, LPS_ORIGINy*CELL_SIZE);
 
-	updateFromLPS(LPS_arr, GPS_arr, origx, origy, theta);
+	// updateFromLPS(LPS_arr, GPS_arr, botx, boty, theta);
 }
 
 void setArray(double *arr, int rows, int cols, double value)
@@ -49,14 +49,14 @@ void detectHits(double *LPS_arr, int *dist_arr, double theta, double origx, doub
 
 	for (i=0; i<SENSOR_FOV; i++){
 		dist = dist_arr[i];
-		if (dist < MAX_RANGE)
+		if (dist < MAX_RANGE-1)
 			senseObstacle = TRUE;
 		else
 			senseObstacle = FALSE;
 		hitx = cos(i*M_PI/180) * dist + origx;
 		hity = sin(i*M_PI/180) * dist + origy;
 
-		printf("%.2f, %.2f\n", hitx, hity);
+		// printf("%.2f, %.2f\n", hitx, hity);
 
 		assignOccupancy(LPS_arr, offx, offy, hitx, hity, origx, origy, arc, senseObstacle);
 	}
