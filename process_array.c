@@ -17,7 +17,7 @@ void process(double *GPS_arr, double *LPS_arr, int *dist_arr, double botx, doubl
 	// Detect hits on the cells within the LPS based on the distances given in the dist_arr.
 	// Assign 1.0 (Occupied) or 0.0 (Unoccupied) values to the cells
 	
-	setArray(LPS_arr, LPS_HEIGHT_CELLS, LPS_WIDTH_CELLS, 0.5);
+	// setArray(LPS_arr, LPS_HEIGHT_CELLS, LPS_WIDTH_CELLS, 0.5);
 	
 	// detectHits(LPS_arr, dist_arr, theta, LPS_ORIGINx*CELL_SIZE, LPS_ORIGINy*CELL_SIZE);
 
@@ -37,11 +37,13 @@ void setArray(double *arr, int rows, int cols, double value)
 	}
 }
 
-void detectHits(double *LPS_arr, int *dist_arr, double theta, double origx, double origy)
+void detectHits(double *LPS_arr, int *dist_arr, double theta)
 {
 	int senseObstacle;
 	int i, dist, arc, offx, offy;
 	double hitx, hity;
+
+	printf("Hi, inside DetectHits\n");
 
 	arc = 0;
 	offx = 0;
@@ -53,76 +55,73 @@ void detectHits(double *LPS_arr, int *dist_arr, double theta, double origx, doub
 			senseObstacle = TRUE;
 		else
 			senseObstacle = FALSE;
-		hitx = cos(i*M_PI/180) * dist + origx;
-		hity = sin(i*M_PI/180) * dist + origy;
+		hitx = cos(i*M_PI/180) * dist + LPS_ORIGINx;
+		hity = sin(i*M_PI/180) * dist + LPS_ORIGINy;
 
 		// printf("%.2f, %.2f\n", hitx, hity);
 
-		assignOccupancy(LPS_arr, offx, offy, hitx, hity, origx, origy, arc, senseObstacle);
+		assignOccupancy(LPS_arr, offx, offy, hitx, hity, arc, senseObstacle);
 	}
 }
 
-void assignOccupancy(double *LPS_arr, int offx, int offy, double hitx, double hity, double origx, double origy, int arc, int senseObstacle)
+void assignOccupancy(double *LPS_arr, int offx, int offy, double hitx, double hity, int arc, int senseObstacle)
 {
-	double rise, run, stepx, stepy, currx, curry;
-	int steps, step;
-	double colScaleMM, rowScaleMM;
+	double rise, run, stepx, stepy, fcurrent_cell_x, fcurrent_cell_y;
+    int steps, step, cell_hitx, cell_hity, current_cell_x, current_cell_y;
 
-	colScaleMM = CELL_SIZE;
-	rowScaleMM = CELL_SIZE;
+	rise = (hity - LPS_ORIGINy) / CELL_SIZE;
+    if (fabs(rise) < 0.1){
+        rise = 0.0;
+    }
 
-	rise = hity - origy;
-	if (fabs(rise) < 0.1){
-		rise = 0.0;
-	}
+    run = (hitx - LPS_ORIGINx) / CELL_SIZE;
+    if (fabs(run) < 0.1){
+        run = 0.0;
+    }
 
-	run = hitx - origx;
-	if (fabs(run) < 0.1){
-		run = 0.0;
-	}
+    steps = lrint(lround(fmax(fabs(rise), fabs(run))));
 
-	steps = lrint(lround(fmax(fabs(rise/rowScaleMM), fabs(run/colScaleMM))));
+    stepx = run/steps;
+    stepy = rise/steps;
 
-	if(steps == 0){
-		LPS_arr[lrint(origy/colScaleMM) * LPS_WIDTH + lrint(origx/colScaleMM)] = OCCUPIED;
-		return;
-	}
+    if (fabs(stepx) > CELL_SIZE){
+        stepx = CELL_SIZE;
+        if (run < 0){
+            stepx *= -1;
+        }
+    }
 
-	stepx = run / steps;
+    if (fabs(stepy) > CELL_SIZE){
+        stepy = CELL_SIZE;
+        if (rise < 0){
+            stepy *= -1;
+        }
+    }
 
-	if (fabs(stepx) > colScaleMM){
-		stepx = colScaleMM;
-		if (run < 0){
-			stepx *= -1;
-		}
-	}
+    fcurrent_cell_x = (LPS_ORIGINx / CELL_SIZE);
+	fcurrent_cell_y = (LPS_ORIGINy / CELL_SIZE);
 
-	stepy = rise / steps;
+    current_cell_x = lrint(fcurrent_cell_x);
+    current_cell_y = lrint(fcurrent_cell_y);
 
-	if (fabs(stepy) > rowScaleMM){
-		stepy = rowScaleMM;
-		if (run < 0){
-			stepy *= -1;
-		}
-	}
+    LPS_arr[current_cell_y * LPS_WIDTH_CELLS + current_cell_x] = 2; //UNOCCUPIED
+    
+    cell_hitx = lrint(hitx/CELL_SIZE);
+    cell_hity = lrint(hity/CELL_SIZE);
 
-	currx = origx;
-	curry = origy;
+    for (step=0; step<steps; step++){
+        fcurrent_cell_x += stepx;
+        fcurrent_cell_y += stepy;
 
-	LPS_arr[lrint(curry/rowScaleMM) * LPS_WIDTH + lrint(currx/colScaleMM)] = UNOCCUPIED;
-		
+        current_cell_x = lrint(fcurrent_cell_x);
+        current_cell_y = lrint(fcurrent_cell_y);
 
-	for (step=0; step<steps; step++){
-		currx += stepx;
-		curry += stepy;
+        LPS_arr[current_cell_y * LPS_WIDTH_CELLS + current_cell_x] = UNOCCUPIED;
 
-		LPS_arr[lrint(curry/rowScaleMM) * LPS_WIDTH + lrint(currx/colScaleMM)] = UNOCCUPIED;
-			
-		if (senseObstacle == TRUE){
-			LPS_arr[lrint(hity/rowScaleMM)*LPS_WIDTH + lrint(hitx/colScaleMM)] = OCCUPIED;
-		}
-		else{
-			LPS_arr[lrint(hity/rowScaleMM)*LPS_WIDTH + lrint(hitx/colScaleMM)] = UNOCCUPIED;
-		}
-	}
+        if (senseObstacle == TRUE){
+            LPS_arr[cell_hity * LPS_WIDTH_CELLS + cell_hitx] = OCCUPIED;
+        }else{
+            LPS_arr[cell_hity * LPS_WIDTH_CELLS + cell_hitx] = UNOCCUPIED;
+        }
+    }
 }
