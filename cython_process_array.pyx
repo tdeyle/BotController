@@ -74,13 +74,13 @@ cdef void measureDistance(np.ndarray[int, ndim=1, mode="c"] dist_arr, np.ndarray
 
     print "Entering"
     
-    # for angle in xrange(SENSOR_FOV):
-    for angle in prange(SENSOR_FOV, nogil=True, num_threads=10):
+    for angle in xrange(SENSOR_FOV):
+    # for angle in prange(SENSOR_FOV, nogil=True, num_threads=10):
         local_angle = <int>(theta + angle) % 360
         local_angle_rad = <double>(local_angle * M_PI / 180.0)
 
-        # for length in xrange(MAX_RANGE):
-        for length in prange(MAX_RANGE, num_threads=10):
+        for length in xrange(MAX_RANGE):
+        # for length in prange(MAX_RANGE, num_threads=10):
             current_x = x + cos(local_angle_rad) * length
             current_y = y + sin(local_angle_rad) * length
 
@@ -146,7 +146,7 @@ cdef void cy_assignOccupancy(np.ndarray[double, ndim=2, mode='c'] LPS_arr, int o
     fcurrent_cell_x, fcurrent_cell_y = (LPS_ORIGINx/CELL_SIZE, LPS_ORIGINy/CELL_SIZE)
     current_cell_x, current_cell_y = (lrint(fcurrent_cell_x), lrint(fcurrent_cell_y))
 
-    LPS_arr[current_cell_y, current_cell_x] = 2 # UNOCCUPIED
+    LPS_arr[current_cell_y, current_cell_x] = UNOCCUPIED
     cell_hitx, cell_hity = (lrint(hitx/CELL_SIZE), lrint(hity/CELL_SIZE))
 
     # print "Rise: ", rise, "run: ", run, "steps: ", steps, "stepx: ", stepx, "stepy: ", stepy, "current cells: ", current_cell_x, current_cell_y
@@ -256,8 +256,6 @@ cdef void cy_updateFromLPS(np.ndarray[double, ndim=2, mode='c'] LPS_arr, np.ndar
 
     cdef int x, y
 
-
-
     for y in range(active_rows):
         for x in range(active_cols):
             if LPS_arr[x, y] == 0.5:
@@ -322,12 +320,12 @@ def main(bot_state):
     LPS[0:] = 0.5
 
     # cy_detectHits(LPS, distance, fTheta)
-    before = time.clock()
+    # before = time.clock()
     
-    c_detectHits(LPS, distance, fTheta)
+    cy_detectHits(LPS, distance, fTheta)
     cy_updateFromLPS(LPS, GPS, fBotx, fBoty, fTheta)
 
-    print "C: ", time.clock() - before_cy
+    # print "C: ", time.clock() - before_cy
 
     # print distance
     # print "Bot Location: ", botx, boty
@@ -349,7 +347,7 @@ def main(bot_state):
     # #-------------------------------------
     # # Printing results
     # #-------------------------------------
-    
+    print distance
     print "LPS: "
     print LPS
     print ""
