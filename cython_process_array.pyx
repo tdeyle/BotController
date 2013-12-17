@@ -228,12 +228,12 @@ cdef void cy_updateFromLPS(np.ndarray[double, ndim=2, mode='c'] LPS_arr, np.ndar
 
     if Upper_boundaryFlagX > GPS_WIDTH_CELLS - 1:
         LPS_upper_boundsX = GPS_WIDTH_CELLS - 1 - botx + LPS_ORIGIN_CELLx
-        GPS_upper_boundsX = 0
+        GPS_upper_boundsX = GPS_WIDTH_CELLS - 1
         print "Upper_boundaryFlagX hit"
 
     if Upper_boundaryFlagY > GPS_HEIGHT_CELLS - 1:
         LPS_upper_boundsY = GPS_HEIGHT_CELLS - 1 - boty + LPS_ORIGIN_CELLy
-        GPS_upper_boundsY = 0
+        GPS_upper_boundsY = GPS_HEIGHT_CELLS - 1
         print "Upper_boundaryFlagY hit"
 
     print "------------After Boundary Check-----------"
@@ -254,26 +254,27 @@ cdef void cy_updateFromLPS(np.ndarray[double, ndim=2, mode='c'] LPS_arr, np.ndar
     print "GPS_skip: ", GPS_skip, "GPSidx: ", GPSidx
     print "LPS_skip: ", LPS_skip, "LPSidx: ", LPSidx
 
-    cdef int x, y
+    cdef int x, y, row, col
 
-    for y in range(active_rows):
-        for x in range(active_cols):
-            if LPS_arr[x, y] == 0.5:
-                GPS_arr[x, y] = GPS_arr[x, y]
+    GPSx = GPS_lower_boundsX
+    GPSy = GPS_lower_boundsY
+
+    LPSx = LPS_lower_boundsX
+    LPSy = LPS_lower_boundsY
+
+    for row in range(active_rows):
+        for col in range(active_cols):
+            if LPS_arr[LPSx, LPSy] == 0.5:
+                GPS_arr[GPSx, GPSy] = GPS_arr[GPSx, GPSy]
             else:
-                GPS_arr[x, y] = cy_getProb(GPS_arr[x,y], lrint(LPS_arr[x,y]))
+                GPS_arr[GPSx, GPSy] = cy_getProb(GPS_arr[GPSx,GPSy], lrint(LPS_arr[LPSx,LPSy]))
 
-
-
-            # if LPS_arr[LPSidx] == 0.5:
-            #     GPS_arr[GPSidx] = GPS_arr[GPSidx]
-            # else:
-            #     GPS_arr[GPSidx] = cy_getProb(GPS_arr[GPSidx], lrint(LPS_arr[LPSidx]))
-
-            # GPSidx += 1
-            # LPSidx += 1
-        GPSidx += GPS_skip
-        LPSidx += LPS_skip
+            GPSx += 1
+            LPSx += 1
+        GPSy += 1
+        LPSy += 1
+        GPSx = GPS_lower_boundsX
+        LPSx = LPS_lower_boundsY
 
 cdef double cy_getProb(double prior_occ, int obstacle_is_sensed):
     cdef double POcc, PEmp, inv_prior, new_prob
