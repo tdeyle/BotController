@@ -4,7 +4,7 @@
 import cython
 import time
 import cython_simulator
-from libc.math cimport M_PI, sin, cos, fabs, lrint, lround, fmax, abs
+from libc.math cimport M_PI, sin, cos, fabs, lrint, lround, fmax, abs, ceil
 import numpy as np
 cimport numpy as np
 from cython.parallel import parallel, prange
@@ -69,8 +69,11 @@ cdef void measureDistance(np.ndarray[int, ndim=1, mode="c"] dist_arr, np.ndarray
     cdef int x, y
     cdef int angle, length, local_angle, grid_x, grid_y
 
-    x = lrint(bot_x);
-    y = lrint(bot_y);
+    # x = lrint(bot_x);
+    # y = lrint(bot_y);
+
+
+    # print "x, y: ", x, y
 
     print "Entering"
     
@@ -81,19 +84,19 @@ cdef void measureDistance(np.ndarray[int, ndim=1, mode="c"] dist_arr, np.ndarray
 
         for length in xrange(MAX_RANGE):
         # for length in prange(MAX_RANGE, num_threads=10):
-            current_x = x + cos(local_angle_rad) * length
-            current_y = y + sin(local_angle_rad) * length
+            current_x = bot_x + cos(local_angle_rad) * length
+            current_y = bot_y + sin(local_angle_rad) * length
 
-            grid_x = lrint(current_x / CELL_SIZE)
-            grid_y = lrint(current_y / CELL_SIZE)
+            grid_x = lrint(ceil(current_x / CELL_SIZE))
+            grid_y = lrint(ceil(current_y / CELL_SIZE))
 
             if grid_y >= WORLD_HEIGHT/CELL_SIZE or grid_y < 0 or grid_x >= WORLD_WIDTH/CELL_SIZE or grid_x < 0:
                 dist_arr[local_angle] = length
                 break
-            elif sim_map_arr[grid_y, grid_x] == 1.0:
+            elif sim_map_arr[grid_y, grid_x] == 1:
                 dist_arr[local_angle] = length
                 break 
-            elif length == MAX_RANGE - 1:
+            elif length == MAX_RANGE-1:
                 dist_arr[local_angle] = MAX_RANGE-1
 
 cdef void cy_detectHits(np.ndarray[double, ndim=2, mode='c'] LPS_arr, np.ndarray[int, ndim=1, mode='c'] dist_arr, double theta):
@@ -107,12 +110,12 @@ cdef void cy_detectHits(np.ndarray[double, ndim=2, mode='c'] LPS_arr, np.ndarray
 
     for i in xrange(SENSOR_FOV):
         dist = dist_arr[i]
-        if dist < MAX_RANGE - 1:
-            senseObstacle = True
-        else:
+        if dist == MAX_RANGE - 1:
             senseObstacle = False
-        hitx = cos(theta+i*M_PI/180) * dist + LPS_ORIGINx
-        hity = sin(theta+i*M_PI/180) * dist + LPS_ORIGINy
+        else:
+            senseObstacle = True
+        hitx = cos(theta + i*M_PI/180) * dist + LPS_ORIGINx
+        hity = sin(theta + i*M_PI/180) * dist + LPS_ORIGINy
 
         cy_assignOccupancy(LPS_arr, offx, offy, hitx, hity, arc, senseObstacle)
 
@@ -155,15 +158,15 @@ cdef void cy_assignOccupancy(np.ndarray[double, ndim=2, mode='c'] LPS_arr, int o
         fcurrent_cell_x += stepx
         fcurrent_cell_y += stepy
 
-        current_cell_x = lrint(fcurrent_cell_x)
-        current_cell_y = lrint(fcurrent_cell_y)
+        current_cell_x = lrint(ceil(fcurrent_cell_x))
+        current_cell_y = lrint(ceil(fcurrent_cell_y))
 
         LPS_arr[current_cell_y, current_cell_x] = UNOCCUPIED
 
-        if senseObstacle == True:
-            LPS_arr[cell_hity, cell_hitx] = OCCUPIED
-        else:
-            LPS_arr[cell_hity, cell_hitx] = UNOCCUPIED
+    if senseObstacle is True:
+        LPS_arr[cell_hity, cell_hitx] = OCCUPIED
+    elif senseObstacle is False:
+        LPS_arr[cell_hity, cell_hitx] = UNOCCUPIED
 
 cdef void cy_updateFromLPS(np.ndarray[double, ndim=2, mode='c'] LPS_arr, np.ndarray[double, ndim=2, mode='c'] GPS_arr, double origx, double origy, double theta):
     
@@ -177,8 +180,11 @@ cdef void cy_updateFromLPS(np.ndarray[double, ndim=2, mode='c'] LPS_arr, np.ndar
 
     cdef int active_rows, active_cols
 
-    cdef int GPS_skip, LPS_skip
+    cdef int GPS_skip, LPS_skip 
     cdef int GPSidx, LPSidx
+
+    print "origx, y: ", origx, origy
+    print "GPS_WIDTH_CELLS, HEIGHT: ", GPS_WIDTH_CELLS, GPS_HEIGHT_CELLS
 
     botx = lrint(origx/CELL_SIZE)
     boty = lrint(origy/CELL_SIZE)
@@ -254,7 +260,7 @@ cdef void cy_updateFromLPS(np.ndarray[double, ndim=2, mode='c'] LPS_arr, np.ndar
     print "GPS_skip: ", GPS_skip, "GPSidx: ", GPSidx
     print "LPS_skip: ", LPS_skip, "LPSidx: ", LPSidx
 
-    cdef int x, y, row, col
+    cdef int GPSx, GPSy, LPSx, LPSy, row, col
 
     GPSx = GPS_lower_boundsX
     GPSy = GPS_lower_boundsY
@@ -264,17 +270,19 @@ cdef void cy_updateFromLPS(np.ndarray[double, ndim=2, mode='c'] LPS_arr, np.ndar
 
     for row in range(active_rows):
         for col in range(active_cols):
-            if LPS_arr[LPSx, LPSy] == 0.5:
-                GPS_arr[GPSx, GPSy] = GPS_arr[GPSx, GPSy]
+            if LPS_arr[LPSy, LPSx] == 0.5:
+                GPS_arr[GPSy, GPSx] = GPS_arr[GPSy, GPSx]
             else:
-                GPS_arr[GPSx, GPSy] = cy_getProb(GPS_arr[GPSx,GPSy], lrint(LPS_arr[LPSx,LPSy]))
+                GPS_arr[GPSy, GPSx] = cy_getProb(GPS_arr[GPSy,GPSx], lrint(LPS_arr[LPSy,LPSx]))
 
             GPSx += 1
             LPSx += 1
         GPSy += 1
         LPSy += 1
         GPSx = GPS_lower_boundsX
-        LPSx = LPS_lower_boundsY
+        LPSx = LPS_lower_boundsX
+
+    GPS_arr[boty, botx] = 2
 
 cdef double cy_getProb(double prior_occ, int obstacle_is_sensed):
     cdef double POcc, PEmp, inv_prior, new_prob
@@ -310,7 +318,7 @@ def main(bot_state):
     cy_initArray(GPS)
 
     sim_map = np.arange(GPS_WIDTH_CELLS*GPS_HEIGHT_CELLS, dtype=np.float64).reshape(GPS_HEIGHT_CELLS,GPS_WIDTH_CELLS)
-    
+
     cython_simulator.cy_buildMap(sim_map, GPS_HEIGHT_CELLS, GPS_WIDTH_CELLS, CELL_SIZE)
     
     distance = np.arange(SENSOR_FOV, dtype=np.int32)
@@ -345,10 +353,14 @@ def main(bot_state):
     
     print "cython: ", time.clock() - before_cy
 
+    sim_map[int(fBoty/CELL_SIZE), int(fBotx/CELL_SIZE)] = 2
+    
     # #-------------------------------------
     # # Printing results
     # #-------------------------------------
     print distance
+    print "SimMap: "
+    print sim_map
     print "LPS: "
     print LPS
     print ""

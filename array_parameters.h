@@ -48,5 +48,5 @@
 #define TRUE 1
 #define FALSE 0
 
-#define max_occupied 0.98
-#define max_empty 0.05
+#define max_occupied 1.0
+#define max_empty 0.0
