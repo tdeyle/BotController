@@ -305,7 +305,7 @@ def main(bot_state):
     
     fBotx, fBoty, fTheta = bot_state
 
-    np.set_printoptions(linewidth=600, threshold='nan', precision=2)
+    np.set_printoptions(linewidth=600, threshold='nan', precision=2, suppress=True)
     
     before_cy = time.clock()
 
@@ -324,33 +324,12 @@ def main(bot_state):
     distance = np.arange(SENSOR_FOV, dtype=np.int32)
     
     measureDistance(distance, sim_map, fBotx, fBoty, fTheta)
-    print "measureDistance Done"
-
+    
     LPS[0:] = 0.5
 
-    # cy_detectHits(LPS, distance, fTheta)
-    # before = time.clock()
-    
     cy_detectHits(LPS, distance, fTheta)
     cy_updateFromLPS(LPS, GPS, fBotx, fBoty, fTheta)
 
-    # print "C: ", time.clock() - before_cy
-
-    # print distance
-    # print "Bot Location: ", botx, boty
-
-    # print LPS
-    # print sim_map
-    # print GPS
-    # # b = np.arange(360, dtype=np.int32)
-    # # b[0:360] = 8
-
-    # # print b
-
-    # # Add assigning values to the GPS and LPS arrays here.... GPS[0:...] = 0.5
-
-    # cy_processArray(GPS, LPS, distance, fBotx, fBoty, fTheta)
-    
     print "cython: ", time.clock() - before_cy
 
     sim_map[int(fBoty/CELL_SIZE), int(fBotx/CELL_SIZE)] = 2
@@ -366,3 +345,27 @@ def main(bot_state):
     print ""
     print "GPS: "
     print GPS
+
+    input_key = ""
+
+    while input_key != "q":
+        input_key = raw_input()
+
+        if input_key == "w":
+            fBoty -= CELL_SIZE
+        elif input_key == "s":
+            fBoty += CELL_SIZE
+        elif input_key == "a":
+            fBotx -= CELL_SIZE
+        elif input_key == "d":
+            fBotx += CELL_SIZE
+
+        measureDistance(distance, sim_map, fBotx, fBoty, fTheta)
+        LPS[0:] = 0.5
+        cy_detectHits(LPS, distance, fTheta)
+        cy_updateFromLPS(LPS, GPS, fBotx, fBoty, fTheta)
+
+        print "LPS: "
+        print LPS
+        print "GPS: "
+        print GPS
