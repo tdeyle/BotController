@@ -17,14 +17,16 @@ import cython_simulator as cs
 #         return MyWidget()
 
 if __name__ == "__main__":
-    stuff = cpa.Mapping(False, (1000,1000,0))
-    np.set_printoptions(linewidth=600, threshold='nan', precision=2, suppress=True)
-    
-    for i in range(10):
-        before = time.clock()
-        stuff.update_pos(1000+i*200, 1000+i*200, 0)
-        print time.clock() - before
-        print stuff.GPS
+    cpa.main()
 
-    # print stuff.LPS
-    print stuff.GPS
+    # stuff = cpa.Mapping(False, (1000,1000,0))
+    # np.set_printoptions(linewidth=600, threshold='nan', precision=2, suppress=True)
+    
+    # for i in range(10):
+    #     before = time.clock()
+    #     stuff.update_pos(1000+i*200, 1000+i*200, 0)
+    #     print time.clock() - before
+    #     # print stuff.LPS, stuff.GPS
+
+    # # print stuff.LPS
+    # print stuff.GPS
