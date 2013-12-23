@@ -1,4 +1,3 @@
-# Where is the bot location going to go?
 #!python
 #cython: cdivision(True), boundscheck(False), wraparound(False)
 import cython
@@ -8,13 +7,7 @@ from libc.math cimport M_PI, sin, cos, fabs, lrint, lround, fmax, abs, ceil
 import numpy as np
 cimport numpy as np
 from cython.parallel import parallel, prange
-from numba import autojit
 
-cdef extern from "process_array.h":
-    void process(double *GPS_arr, double *LPS_arr, int *dist_arr, double origx, double origy, double theta)
-    void initialize(double *GPS_arr)
-    void detectHits(double *LPS_arr, int *dist_arr, double theta)
-    
 cdef extern from "array_parameters.h":
     cdef int WORLD_WIDTH
     cdef int WORLD_HEIGHT
@@ -44,21 +37,6 @@ cdef extern from "array_parameters.h":
 
     cdef double max_occupied
     cdef double max_empty
-
-cdef extern from "process_GPS.h":
-    void updateFromLPS(double *LPS_arr, double *GPS_arr, double origx, double origy, double theta)
-
-def cy_processArray(np.ndarray[double, ndim=2, mode="c"] input_GPS, np.ndarray[double, ndim=2, mode="c"] input_LPS, np.ndarray[int, ndim=1, mode="c"] dist, double origx, double origy, double theta):
-    process(&input_GPS[0,0], &input_LPS[0,0], &dist[0], origx, origy, theta)
-
-def cy_initArray(np.ndarray[double, ndim=2, mode="c"] input_GPS):
-    initialize(&input_GPS[0,0])
-
-def c_detectHits(np.ndarray[double, ndim=2, mode='c'] LPS_arr, np.ndarray[int, ndim=1, mode='c'] dist_arr, double theta):
-    detectHits(&LPS_arr[0,0], &dist_arr[0], theta)
-
-def c_updateFromLPS(np.ndarray[double, ndim=2, mode='c'] input_LPS, np.ndarray[double, ndim=2, mode='c'] input_GPS, double origx, double origy, double theta):
-    updateFromLPS(&input_LPS[0,0], &input_GPS[0,0], origx, origy, theta)
 
 cdef class Mapping:
     cdef public LPS, GPS, distance, sim_map
@@ -95,18 +73,16 @@ cdef class Mapping:
 
     def update_pos(self, x, y, theta):
         self.setPosition((x, y, theta))
-        self.measureDistance(self.distance, self.sim_map, x, y, theta)
+        self.measureDistance()
         self.LPS[0:] = 0.5
-        self.cy_detectHits(self.LPS, self.distance, theta)
-        self.cy_updateFromLPS(self.LPS, self.GPS, x, y, theta)
+        self.cy_detectHits()
+        self.cy_updateFromLPS()
      
-    cdef void initializeLPS(self, np.ndarray[double, ndim=2, mode="c"] LPS_arr):
-        LPS_arr[0:] = 0.5
+    cdef void initializeLPS(self):
+        self.LPS[0:] = 0.5
 
-    cdef void measureDistance(self, np.ndarray[int, ndim=1, mode="c"] dist_arr, np.ndarray[double, ndim=2, mode="c"] sim_map_arr, double bot_x, double bot_y, double theta):
-        # cdef int angle, length
+    cdef void measureDistance(self):
         cdef double local_angle_rad, current_x, current_y
-        cdef int x, y
         cdef int angle, length, local_angle, grid_x, grid_y
 
 
@@ -114,29 +90,29 @@ cdef class Mapping:
         
         for angle in xrange(SENSOR_FOV):
         # for angle in prange(SENSOR_FOV, nogil=True, num_threads=10):
-            local_angle = <int>(theta + angle) % 360
+            local_angle = <int>(self.fTheta + angle) % 360
             local_angle_rad = <double>(local_angle * M_PI / 180.0)
 
             for length in xrange(MAX_RANGE):
             # for length in prange(MAX_RANGE, num_threads=10):
-                current_x = bot_x + cos(local_angle_rad) * length
-                current_y = bot_y + sin(local_angle_rad) * length
+                current_x = self.fBotx + cos(local_angle_rad) * length
+                current_y = self.fBoty + sin(local_angle_rad) * length
 
                 grid_x = lrint(ceil(current_x / CELL_SIZE))
                 grid_y = lrint(ceil(current_y / CELL_SIZE))
 
                 if grid_y >= WORLD_HEIGHT/CELL_SIZE or grid_y < 0 or grid_x >= WORLD_WIDTH/CELL_SIZE or grid_x < 0:
-                    dist_arr[local_angle] = length
+                    self.distance[local_angle] = length
                     break
-                elif sim_map_arr[grid_y, grid_x] == 1:
-                    dist_arr[local_angle] = length
+                elif self.sim_map[grid_y, grid_x] == 1:
+                    self.distance[local_angle] = length
                     break 
                 elif length == MAX_RANGE-1:
-                    dist_arr[local_angle] = MAX_RANGE-1
+                    self.distance[local_angle] = MAX_RANGE-1
 
-        if self.debug is True: print dist_arr
+        if self.debug is True: print self.distance
 
-    cdef void cy_detectHits(self, np.ndarray[double, ndim=2, mode='c'] LPS_arr, np.ndarray[int, ndim=1, mode='c'] dist_arr, double theta):
+    cdef void cy_detectHits(self):
         cdef int senseObstacle
         cdef int i, dist, arc, offx, offy
         cdef double hitx, hity
@@ -146,17 +122,17 @@ cdef class Mapping:
         offy = 0
 
         for i in xrange(SENSOR_FOV):
-            dist = dist_arr[i]
+            dist = self.distance[i]
             if dist == MAX_RANGE - 1:
                 senseObstacle = False
             else:
                 senseObstacle = True
-            hitx = cos(theta + i*M_PI/180) * dist + LPS_ORIGINx
-            hity = sin(theta + i*M_PI/180) * dist + LPS_ORIGINy
+            hitx = cos(self.fTheta + i*M_PI/180) * dist + LPS_ORIGINx
+            hity = sin(self.fTheta + i*M_PI/180) * dist + LPS_ORIGINy
 
-            self.cy_assignOccupancy(LPS_arr, offx, offy, hitx, hity, arc, senseObstacle)
+            self.cy_assignOccupancy(offx, offy, hitx, hity, arc, senseObstacle)
 
-    cdef void cy_assignOccupancy(self, np.ndarray[double, ndim=2, mode='c'] LPS_arr, int offx, int offy, double hitx, double hity, int arc, int senseObstacle):
+    cdef void cy_assignOccupancy(self, int offx, int offy, double hitx, double hity, int arc, int senseObstacle):
         cdef double rise, run, stepx, stepy, fcurrent_cell_x, fcurrent_cell_y
         cdef int steps, step, cell_hitx, cell_hity, current_cell_x, current_cell_y
 
@@ -186,7 +162,7 @@ cdef class Mapping:
         fcurrent_cell_x, fcurrent_cell_y = (LPS_ORIGINx/CELL_SIZE, LPS_ORIGINy/CELL_SIZE)
         current_cell_x, current_cell_y = (lrint(fcurrent_cell_x), lrint(fcurrent_cell_y))
 
-        LPS_arr[current_cell_y, current_cell_x] = UNOCCUPIED
+        self.LPS[current_cell_y, current_cell_x] = UNOCCUPIED
         cell_hitx, cell_hity = (lrint(hitx/CELL_SIZE), lrint(hity/CELL_SIZE))
 
         if self.debug is True: print "Rise: ", rise, "run: ", run, "steps: ", steps, "stepx: ", stepx, "stepy: ", stepy, "current cells: ", current_cell_x, current_cell_y
@@ -198,21 +174,21 @@ cdef class Mapping:
             current_cell_x = lrint(ceil(fcurrent_cell_x))
             current_cell_y = lrint(ceil(fcurrent_cell_y))
 
-            LPS_arr[current_cell_y, current_cell_x] = UNOCCUPIED
+            self.LPS[current_cell_y, current_cell_x] = UNOCCUPIED
 
         if senseObstacle is True:
-            LPS_arr[cell_hity, cell_hitx] = OCCUPIED
+            self.LPS[cell_hity, cell_hitx] = OCCUPIED
         elif senseObstacle is False:
-            LPS_arr[cell_hity, cell_hitx] = UNOCCUPIED
+            self.LPS[cell_hity, cell_hitx] = UNOCCUPIED
 
-    cdef void cy_updateFromLPS(self, np.ndarray[double, ndim=2, mode='c'] LPS_arr, np.ndarray[double, ndim=2, mode='c'] GPS_arr, double origx, double origy, double theta):
+    cdef void cy_updateFromLPS(self):
         
         # Declare boundary variables
         cdef int LPS_lower_boundsX, LPS_lower_boundsY, LPS_upper_boundsX, LPS_upper_boundsY
         cdef int GPS_lower_boundsX, GPS_lower_boundsY, GPS_upper_boundsX, GPS_upper_boundsY
         cdef int Lower_boundaryFlagX, Lower_boundaryFlagY, Upper_boundaryFlagX, Upper_boundaryFlagY
 
-        # Declare bot location variables
+        # Declare bot location variables as integers
         cdef int botx, bot_y
 
         cdef int active_rows, active_cols
@@ -221,11 +197,11 @@ cdef class Mapping:
         cdef int GPSidx, LPSidx
 
         if self.debug is True:
-            print "origx, y: ", origx, origy
+            print "origx, y: ", self.fBotx, self.fBoty
             print "GPS_WIDTH_CELLS, HEIGHT: ", GPS_WIDTH_CELLS, GPS_HEIGHT_CELLS
 
-        botx = lrint(origx/CELL_SIZE)
-        boty = lrint(origy/CELL_SIZE)
+        botx = lrint(self.fBotx/CELL_SIZE)
+        boty = lrint(self.fBoty/CELL_SIZE)
 
         # Check bot location values
         if botx < 0 or botx > GPS_WIDTH_CELLS:
@@ -311,10 +287,10 @@ cdef class Mapping:
 
         for row in range(active_rows):
             for col in range(active_cols):
-                if LPS_arr[LPSy, LPSx] == 0.5:
-                    GPS_arr[GPSy, GPSx] = GPS_arr[GPSy, GPSx]
+                if self.LPS[LPSy, LPSx] == 0.5:
+                    self.GPS[GPSy, GPSx] = self.GPS[GPSy, GPSx]
                 else:
-                    GPS_arr[GPSy, GPSx] = self.cy_getProb(GPS_arr[GPSy,GPSx], lrint(LPS_arr[LPSy,LPSx]))
+                    self.GPS[GPSy, GPSx] = self.cy_getProb(self.GPS[GPSy,GPSx], lrint(self.LPS[LPSy,LPSx]))
 
                 GPSx += 1
                 LPSx += 1
@@ -323,7 +299,7 @@ cdef class Mapping:
             GPSx = GPS_lower_boundsX
             LPSx = LPS_lower_boundsX
 
-        GPS_arr[boty, botx] = 2
+        self.GPS[boty, botx] = 2
 
     cdef double cy_getProb(self, double prior_occ, int obstacle_is_sensed):
         cdef double POcc, PEmp, inv_prior, new_prob

@@ -7,7 +7,6 @@ import cython_simulator as cs
 # from kivy.app import App
 # from kivy.uix.widget import Widget
 # from kivy.clock import Clock
-from numba import autojit
 
 # class MyWidget(Widget):
 #     pass
@@ -18,7 +17,7 @@ from numba import autojit
 #         return MyWidget()
 
 if __name__ == "__main__":
-    stuff = cpa.Mapping(True, (1000,1000,0))
+    stuff = cpa.Mapping(False, (1000,1000,0))
     np.set_printoptions(linewidth=600, threshold='nan', precision=2, suppress=True)
     
     for i in range(10):
