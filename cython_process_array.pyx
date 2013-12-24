@@ -1,5 +1,27 @@
 #!python
 #cython: cdivision(True), boundscheck(False), wraparound(False)
+
+'''
+MAPPING
+ -> update_pos
+        -> SENSOR
+            -> LPS
+                -> MAP
+            -> cy_updateFromLPS
+            -> measureDistance
+            -> cy_detectHits
+            -> cy_getProb
+        -> Sim_Map
+            -> MAP
+            -> cy_buildMap
+        -> GPS 
+            -> MAP
+            -> initialize
+
+We want to be able to incorporate different sensors based on different probabilities that they provide with their occupancy/vacancy.
+How? We need to fuse the sensors' LPS before throwing them onto the GPS. Temp GPS? Maybe.
+
+'''
 import cython
 import time
 import cython_simulator
@@ -45,36 +67,36 @@ cdef class Mapping:
     def __init__(self):
         self.LPS = np.arange(LPS_HEIGHT_CELLS*LPS_WIDTH_CELLS, dtype=np.float64).reshape(LPS_WIDTH_CELLS, LPS_HEIGHT_CELLS)
         np.ascontiguousarray(self.LPS)
-        self.LPS[0:] = 0.5
+        self.LPS[0:] = UNKNOWN
         
-        # Declare GPS
+        # Declare GPS and initialize to UNKNOWN
         self.GPS = np.arange(GPS_HEIGHT_CELLS*GPS_WIDTH_CELLS, dtype=np.float64).reshape(GPS_WIDTH_CELLS, GPS_HEIGHT_CELLS)
         np.ascontiguousarray(self.GPS)
-        self.GPS[0:] = 0.5
+        self.GPS[0:] = UNKNOWN
         
         # Declare self.distance
         self.distance = np.arange(SENSOR_FOV, dtype=np.int32)
 
-        # Declare Sim_Map
+        # Declare Sim_Map and build
         self.sim_map = np.arange(GPS_HEIGHT_CELLS*GPS_WIDTH_CELLS, dtype=np.float64).reshape(GPS_WIDTH_CELLS, GPS_HEIGHT_CELLS)
         np.ascontiguousarray(self.sim_map)
-        self.sim_map[0:] = 0.5
+        self.sim_map[0:] = UNKNOWN
         cython_simulator.cy_buildMap(self.sim_map, GPS_HEIGHT_CELLS, GPS_WIDTH_CELLS, CELL_SIZE)
 
         # Declare current position
         self.x, self.y, self.theta = (1000, 1000, 0)
     
-# def setPosition(bot_state):
-#     self.fBotx, self.fBoty, self.fTheta = bot_state
-
-    def update_pos(self):
+    def update_pos(self, x, y, theta):
+        self.x, self.y, self.theta = x, y, theta
         self.measureDistance(self.distance, self.sim_map, self.x, self.y, self.theta)
-        self.LPS[0:] = 0.5
+        
+        before = time.clock()
+        self.LPS[0:] = UNKNOWN
+
         self.cy_detectHits(self.distance, self.LPS, self.theta)
         self.cy_updateFromLPS(self.x, self.y, self.theta, self.LPS, self.GPS)
- 
-    cdef void initializeLPS(self, np.ndarray[double, ndim=2, mode='c'] LPS_arr):
-        LPS_arr[0:] = 0.5
+
+        print time.clock() - before
 
     cdef void measureDistance(self, np.ndarray[int, ndim=1, mode="c"] dist_arr, np.ndarray[double, ndim=2, mode='c'] sim_map_arr, double x, double y, double theta):
         cdef double local_angle_rad, current_x, current_y
@@ -82,8 +104,8 @@ cdef class Mapping:
 
         # if self.debug is True: print "Entering"
         
-        for angle in xrange(SENSOR_FOV):
-        # for angle in prange(SENSOR_FOV, nogil=True, num_threads=10):
+        # for angle in xrange(SENSOR_FOV):
+        for angle in prange(SENSOR_FOV, nogil=True, num_threads=16):
             local_angle = <int>(theta + angle) % 360
             local_angle_rad = <double>(local_angle * M_PI / 180.0)
 
@@ -105,10 +127,12 @@ cdef class Mapping:
                     dist_arr[local_angle] = MAX_RANGE-1
 
         # if debug is True: print dist_arr
-
+    
+    @cython.cdivision(True)    
+    @cython.boundscheck(False)
     cdef void cy_detectHits(self, np.ndarray[int, ndim=1, mode="c"] dist_arr, np.ndarray[double, ndim=2, mode='c'] LPS_arr, double theta):
-        cdef int senseObstacle
-        cdef int i, dist, arc, offx, offy
+        cdef int senseObstacle, i
+        cdef int dist, arc, offx, offy
         cdef double hitx, hity
 
         cdef double rise, run, stepx, stepy, fcurrent_cell_x, fcurrent_cell_y
@@ -119,6 +143,7 @@ cdef class Mapping:
         offy = 0
 
         for i in xrange(SENSOR_FOV):
+        # for i in prange(SENSOR_FOV, nogil=True, num_threads=16):
             dist = dist_arr[i]
             if dist == MAX_RANGE - 1:
                 senseObstacle = False
@@ -159,6 +184,7 @@ cdef class Mapping:
             # if self.debug is True: print "Rise: ", rise, "run: ", run, "steps: ", steps, "stepx: ", stepx, "stepy: ", stepy, "current cells: ", current_cell_x, current_cell_y
 
             for step in xrange(steps):
+            # for step in prange(steps, nogil=True, num_threads=16):
                 fcurrent_cell_x += stepx
                 fcurrent_cell_y += stepy
 
@@ -276,8 +302,8 @@ cdef class Mapping:
         LPSx = LPS_lower_boundsX
         LPSy = LPS_lower_boundsY
 
-        for row in range(active_rows):
-            for col in range(active_cols):
+        for row in xrange(active_rows):
+            for col in xrange(active_cols):
                 if LPS_arr[LPSy, LPSx] == 0.5:
                     GPS_arr[GPSy, GPSx] = GPS_arr[GPSy, GPSx]
                 else:
@@ -307,42 +333,3 @@ cdef class Mapping:
             new_prob = (PEmp * prior_occ) / ((PEmp * prior_occ) + (POcc * inv_prior))
 
         return new_prob
-
-# def main():
-#     cdef double x, y, theta
-#     # Declare LPS
-#     my_map = Mapping()
-#     LPS = np.arange(LPS_HEIGHT_CELLS*LPS_WIDTH_CELLS, dtype=np.float64).reshape(LPS_WIDTH_CELLS, LPS_HEIGHT_CELLS)
-#     np.ascontiguousarray(LPS)
-#     LPS[0:] = 0.5
-    
-#     # Declare GPS
-#     GPS = np.arange(GPS_HEIGHT_CELLS*GPS_WIDTH_CELLS, dtype=np.float64).reshape(GPS_WIDTH_CELLS, GPS_HEIGHT_CELLS)
-#     np.ascontiguousarray(GPS)
-#     GPS[0:] = 0.5
-    
-#     # Declare self.distance
-#     distance = np.arange(SENSOR_FOV, dtype=np.int32)
-
-#     # Declare Sim_Map
-#     sim_map = np.arange(GPS_HEIGHT_CELLS*GPS_WIDTH_CELLS, dtype=np.float64).reshape(GPS_WIDTH_CELLS, GPS_HEIGHT_CELLS)
-#     np.ascontiguousarray(sim_map)
-#     sim_map[0:] = 0.5
-#     cython_simulator.cy_buildMap(sim_map, GPS_HEIGHT_CELLS, GPS_WIDTH_CELLS, CELL_SIZE)
-
-#     # Declare current position
-#     x, y, theta = (1000, 1000, 0)
-    
-#     np.set_printoptions(linewidth=600, threshold='nan', precision=2, suppress=True)
-    
-#     before = time.clock()
-
-#     my_map.measureDistance(distance, sim_map, x, y, theta)
-#     LPS[0:] = 0.5
-#     my_map.cy_detectHits(distance, LPS, theta)
-#     my_map.cy_updateFromLPS(x, y, theta, LPS, GPS)
-
-#     print time.clock() - before
-
-#     # print stuff.LPS
-#     print GPS
