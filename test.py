@@ -21,6 +21,7 @@ if __name__ == "__main__":
 
     my_map = cpa.Mapping()
     np.set_printoptions(linewidth=600, threshold='nan', precision=2, suppress=True)
+    print my_map.GPS
     
     for i in range(10):
         # before = time.clock()
@@ -36,3 +37,4 @@ if __name__ == "__main__":
 
     # print stuff.LPS
     print my_map.GPS
+    print my_map.sim_map

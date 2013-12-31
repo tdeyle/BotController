@@ -53,9 +53,9 @@ cdef extern from "array_parameters.h":
     cdef int MAX_RANGE
     cdef int SENSOR_FOV
 
-    cdef int OCCUPIED
-    cdef int UNOCCUPIED
-    cdef int UNKNOWN
+    cdef double OCCUPIED
+    cdef double UNOCCUPIED
+    cdef double UNKNOWN
 
     cdef double max_occupied
     cdef double max_empty
@@ -104,8 +104,8 @@ cdef class Mapping:
 
         # if self.debug is True: print "Entering"
         
-        # for angle in xrange(SENSOR_FOV):
-        for angle in prange(SENSOR_FOV, nogil=True, num_threads=16):
+        for angle in xrange(SENSOR_FOV):
+        # for angle in prange(SENSOR_FOV, nogil=True, num_threads=16):
             local_angle = <int>(theta + angle) % 360
             local_angle_rad = <double>(local_angle * M_PI / 180.0)
 
