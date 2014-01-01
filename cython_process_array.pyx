@@ -98,6 +98,8 @@ cdef class Mapping:
 
         print time.clock() - before
 
+    @cython.cdivision(True)    
+    @cython.boundscheck(False)
     cdef void measureDistance(self, np.ndarray[int, ndim=1, mode="c"] dist_arr, np.ndarray[double, ndim=2, mode='c'] sim_map_arr, double x, double y, double theta):
         cdef double local_angle_rad, current_x, current_y
         cdef int angle, length, local_angle, grid_x, grid_y

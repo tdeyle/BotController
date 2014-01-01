@@ -17,24 +17,52 @@ import cython_simulator as cs
 #         return MyWidget()
 
 if __name__ == "__main__":
-    # cpa.main()
+    
+    control = True
 
     my_map = cpa.Mapping()
+    fBotx = 1000
+    fBoty = 1000
+    CELL_SIZE = 200
+
     np.set_printoptions(linewidth=600, threshold='nan', precision=2, suppress=True)
-    print my_map.GPS
     
-    for i in range(10):
-        # before = time.clock()
-        # my_map.update_pos(1000, 1000, 0)
-        my_map.update_pos(1000+200*i, 1000+200*i, 0)
+    if control is True:
+        input_key = ""
 
-    # my_map.measureDistance(my_map.distance, my_map.sim_map, my_map.x, my_map.y, my_map.theta)
-    # LPS[0:] = 0.5
-    # my_map.cy_detectHits(my_map.distance, my_map.LPS, my_map.theta)
-    # my_map.cy_updateFromLPS(my_map.x, my_map.y, my_map.theta, my_map.LPS, my_map.GPS)
+        while input_key != "q":
+            input_key = raw_input()
 
-        # print time.clock() - before
+            if input_key == "w":
+                fBoty -= CELL_SIZE
+            elif input_key == "s":
+                fBoty += CELL_SIZE
+            elif input_key == "a":
+                fBotx -= CELL_SIZE
+            elif input_key == "d":
+                fBotx += CELL_SIZE
 
-    # print stuff.LPS
-    print my_map.GPS
-    print my_map.sim_map
+            my_map.update_pos(fBotx, fBoty, 0)
+
+            print "LPS: "
+            print my_map.LPS
+            print "GPS: "
+            print my_map.GPS
+    else:
+        print my_map.GPS
+        
+        for i in range(10):
+            # before = time.clock()
+            # my_map.update_pos(1000, 1000, 0)
+            my_map.update_pos(1000+200*i, 1000+200*i, 0)
+
+        # my_map.measureDistance(my_map.distance, my_map.sim_map, my_map.x, my_map.y, my_map.theta)
+        # LPS[0:] = 0.5
+        # my_map.cy_detectHits(my_map.distance, my_map.LPS, my_map.theta)
+        # my_map.cy_updateFromLPS(my_map.x, my_map.y, my_map.theta, my_map.LPS, my_map.GPS)
+
+            # print time.clock() - before
+
+        # print stuff.LPS
+        print my_map.GPS
+        print my_map.sim_map
