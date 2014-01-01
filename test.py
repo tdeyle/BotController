@@ -18,9 +18,6 @@ import cython_simulator as cs
 
 if __name__ == "__main__":
 
-    bot_state = (6000.0, 6000.0, 0)
-    cython_process_array.main(bot_state)
-    
     control = True
 
     my_map = cpa.Mapping()
